@@ -23,7 +23,7 @@ def download_video():
                 os.makedirs(output_path)
             
             ydl_opts = {
-                'format': 'bestvideo[ext=mp4][height<=?720]+bestaudio[ext=m4a]/best[ext=mp4]',  # Formato mp4, hasta 720p
+                'format': 'bestvideo[ext=mp4][height<=?1080]+bestaudio[ext=m4a]/best[ext=mp4]',  # Formato mp4, hasta 1080p
                 'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),  # Define la plantilla de nombre de archivo
                 'progress_hooks': [on_progress],  # Llama a la función de progreso
                 'quiet': True,  # Suprime la salida en consola
