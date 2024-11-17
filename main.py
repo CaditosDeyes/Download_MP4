@@ -1,6 +1,6 @@
 import os
 import threading
-from pytube import YouTube
+import yt_dlp
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
@@ -9,36 +9,38 @@ def download_video():
     video_url = entry_url.get()
     output_path = r"D:\Programas_Carlos\Download_Mp4\Descargas"
     
-    def on_progress(stream, chunk, bytes_remaining):
-        total_size = stream.filesize
-        bytes_downloaded = total_size - bytes_remaining
-        percentage = (bytes_downloaded / total_size) * 100
-        progress_var.set(percentage)
-        root.update_idletasks()  # Asegura que la GUI se actualice inmediatamente
+    def on_progress(progress_data):
+        if 'downloaded_bytes' in progress_data and 'total_bytes' in progress_data:
+            bytes_downloaded = progress_data['downloaded_bytes']
+            total_size = progress_data['total_bytes']
+            percentage = (bytes_downloaded / total_size) * 100
+            progress_var.set(percentage)
+            root.update_idletasks()  # Asegura que la GUI se actualice inmediatamente
 
     def download_thread():
         try:
             if not os.path.exists(output_path):
                 os.makedirs(output_path)
             
-            yt = YouTube(video_url, on_progress_callback=on_progress)
-            stream = yt.streams.filter(res="720p", file_extension='mp4').first()
-            if not stream:
-                raise Exception("No hay streams disponibles en 720p para este video.")
-            
-            title = yt.title
-            artist = yt.author
-            
-            update_status(f"{title} - {artist}: Descargando...")
-            
-            # Modifica la línea siguiente para incluir el nombre del artista en el nombre del archivo
-            filepath = os.path.join(output_path, f"{title} - {artist}.mp4")
-            stream.download(output_path=output_path, filename=f"{title} - {artist}.mp4")
-            
-            update_status(f"{title} - {artist}: Descargado")
-            progress_var.set(0)  # Reinicia la barra de progreso
-            update_treeview(filepath, "Descargado")  # Actualiza la Treeview
-            messagebox.showinfo("Información", "Descarga completada correctamente")
+            ydl_opts = {
+                'format': 'bestvideo[ext=mp4][height<=?720]+bestaudio[ext=m4a]/best[ext=mp4]',  # Formato mp4, hasta 720p
+                'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),  # Define la plantilla de nombre de archivo
+                'progress_hooks': [on_progress],  # Llama a la función de progreso
+                'quiet': True,  # Suprime la salida en consola
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(video_url, download=True)
+                title = info_dict.get('title', 'Unknown Title')
+                ext = 'mp4'  # Asegura que el archivo descargado sea mp4
+                filename = f"{title}.{ext}"
+
+                update_status(f"{title}: Descargando...")
+                progress_var.set(0)  # Resetea la barra de progreso
+
+                update_treeview(filename, "Descargado")  # Actualiza el Treeview
+                messagebox.showinfo("Información", f"Descarga completada correctamente: {filename}")
+                
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un error: {e}")
 
@@ -58,7 +60,7 @@ def update_treeview(filename, status):
 
 # Crear ventana principal
 root = tk.Tk()
-root.title("Descargador de videos MP4 desde YouTube")
+root.title("Descargador de videos desde YouTube")
 
 # Ajustar tamaño de la ventana
 root.geometry("1000x550")
