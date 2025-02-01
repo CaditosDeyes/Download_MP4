@@ -8,39 +8,52 @@ from tkinter import ttk
 def download_video():
     video_url = entry_url.get()
     output_path = r"D:\Programas_Carlos\Download_Mp4\Descargas"
-    
+
+    if not video_url:
+        messagebox.showwarning("Advertencia", "Por favor, introduce un enlace de YouTube.")
+        return
+
     def on_progress(progress_data):
         if 'downloaded_bytes' in progress_data and 'total_bytes' in progress_data:
             bytes_downloaded = progress_data['downloaded_bytes']
             total_size = progress_data['total_bytes']
             percentage = (bytes_downloaded / total_size) * 100
             progress_var.set(percentage)
-            root.update_idletasks()  # Asegura que la GUI se actualice inmediatamente
+            root.update_idletasks()
 
     def download_thread():
         try:
             if not os.path.exists(output_path):
                 os.makedirs(output_path)
-            
-            ydl_opts = {
-                'format': 'bestvideo[ext=mp4][height<=?1080]+bestaudio[ext=m4a]/best[ext=mp4]',  # Formato mp4, hasta 1080p
-                'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),  # Define la plantilla de nombre de archivo
-                'progress_hooks': [on_progress],  # Llama a la función de progreso
+
+            ydl_opts_info = {
                 'quiet': True,  # Suprime la salida en consola
+                'skip_download': True,  # No descargar, solo obtener información
             }
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info_dict = ydl.extract_info(video_url, download=True)
-                title = info_dict.get('title', 'Unknown Title')
-                ext = 'mp4'  # Asegura que el archivo descargado sea mp4
-                filename = f"{title}.{ext}"
+            with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+                info_dict = ydl.extract_info(video_url, download=False)
+                title = info_dict.get('title', 'Desconocido')
+            
+            # Mostrar el título en la interfaz antes de descargar
+            update_status(f"Descargando: {title}")
 
-                update_status(f"{title}: Descargando...")
-                progress_var.set(0)  # Resetea la barra de progreso
+            ydl_opts_download = {
+                'format': 'bestvideo[ext=mp4][height<=?1080]+bestaudio[ext=m4a]/best[ext=mp4]',
+                'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
+                'progress_hooks': [on_progress],
+                'quiet': True,
+            }
 
-                update_treeview(filename, "Descargado")  # Actualiza el Treeview
-                messagebox.showinfo("Información", f"Descarga completada correctamente: {filename}")
-                
+            with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
+                ydl.download([video_url])
+
+            update_status(f"Descarga finalizada: {title}")
+            progress_var.set(0)
+
+            update_treeview(title, "Descargado")
+            messagebox.showinfo("Información", f"Descarga finalizada correctamente: {title}")
+
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un error: {e}")
 
